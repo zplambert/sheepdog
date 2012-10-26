@@ -20,15 +20,15 @@
 #include "treeview.h"
 
 static struct sd_option vdi_options[] = {
-	{'P', "prealloc", false, "preallocate all the data objects"},
-	{'i', "index", true, "specify the index of data objects"},
-	{'s', "snapshot", true, "specify a snapshot id or tag name"},
-	{'x', "exclusive", false, "write in an exclusive mode"},
-	{'d', "delete", false, "delete a key"},
-	{'w', "writeback", false, "use writeback mode"},
-	{'c', "copies", true, "specify the data redundancy (number of copies)"},
-	{'F', "from", true, "create a differential backup from the snapshot"},
-	{ 0, NULL, false, NULL },
+	{'P', "prealloc", false, NULL, "preallocate all the data objects"},
+	{'i', "index", true, NULL, "specify the index of data objects"},
+	{'s', "snapshot", true, NULL, "specify a snapshot id or tag name"},
+	{'x', "exclusive", false, NULL, "write in an exclusive mode"},
+	{'d', "delete", false, NULL, "delete a key"},
+	{'w', "writeback", false, NULL, "use writeback mode"},
+	{'c', "copies", true, NULL, "specify the data redundancy (number of copies)"},
+	{'F', "from", true, NULL, "create a differential backup from the snapshot"},
+	{ 0, NULL, false, NULL, NULL },
 };
 
 static struct vdi_cmd_data {

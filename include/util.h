@@ -79,6 +79,7 @@ extern ssize_t xread(int fd, void *buf, size_t len);
 extern ssize_t xwrite(int fd, const void *buf, size_t len);
 extern ssize_t xpread(int fd, void *buf, size_t count, off_t offset);
 extern ssize_t xpwrite(int fd, const void *buf, size_t count, off_t offset);
+extern char *xstrdup(const char *s);
 extern void pstrcpy(char *buf, int buf_size, const char *str);
 extern int rmdir_r(char *dir_path);
 

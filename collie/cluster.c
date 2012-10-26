@@ -17,14 +17,14 @@
 #include "collie.h"
 
 static struct sd_option cluster_options[] = {
-	{'b', "store", true, "specify backend store"},
-	{'c', "copies", true, "specify the default data redundancy (number of copies)"},
-	{'m', "mode", true, "mode (safe, quorum, unsafe)"},
-	{'f', "force", false, "do not prompt for confirmation"},
-	{'R', "restore", true, "restore the cluster"},
-	{'l', "list", false, "list the user epoch information"},
+	{'b', "store", true, NULL, "specify backend store"},
+	{'c', "copies", true, NULL, "specify the default data redundancy (number of copies)"},
+	{'m', "mode", true, NULL, "mode (safe, quorum, unsafe)"},
+	{'f', "force", false, NULL, "do not prompt for confirmation"},
+	{'R', "restore", true, NULL, "restore the cluster"},
+	{'l', "list", false, NULL, "list the user epoch information"},
 
-	{ 0, NULL, false, NULL },
+	{ 0, NULL, false, NULL, NULL },
 };
 
 static struct cluster_cmd_data {

@@ -25,13 +25,13 @@ bool raw_output;
 static const struct sd_option collie_options[] = {
 
 	/* common options for all collie commands */
-	{'a', "address", true, "specify the daemon address (default: localhost)"},
-	{'p', "port", true, "specify the daemon port"},
-	{'r', "raw", false, "raw output mode: omit headers, separate fields with\n\
+	{'a', "address", true, NULL, "specify the daemon address (default: localhost)"},
+	{'p', "port", true, NULL, "specify the daemon port"},
+	{'r', "raw", false, NULL, "raw output mode: omit headers, separate fields with\n\
                           single spaces and print all sizes in decimal bytes"},
-	{'h', "help", false, "display this help and exit"},
+	{'h', "help", false, NULL, "display this help and exit"},
 
-	{ 0, NULL, false, NULL },
+	{ 0, NULL, false, NULL, NULL },
 };
 
 static void usage(const struct command *commands, int status);
