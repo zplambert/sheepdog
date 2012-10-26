@@ -107,7 +107,7 @@ out:
 	return ret;
 }
 
-static int (*command_parser)(int, char *);
+static int (*command_parser)(struct sd_option *);
 static int (*command_fn)(int, char **);
 static const char *command_opts;
 static const char *command_arg;
@@ -302,7 +302,7 @@ void subcommand_usage(char *cmd, char *subcmd, int status)
 	exit(status);
 }
 
-static const struct sd_option *build_sd_options(const char *opts)
+static struct sd_option *build_sd_options(const char *opts)
 {
 	static struct sd_option sd_opts[256], *p;
 	int i, len = strlen(opts);
@@ -317,13 +317,10 @@ static const struct sd_option *build_sd_options(const char *opts)
 
 int main(int argc, char **argv)
 {
-	int ch, longindex, ret;
+	int ret;
 	unsigned long flags;
-	struct option *long_options;
 	const struct command *commands;
-	const char *short_options;
-	char *p;
-	const struct sd_option *sd_opts;
+	struct sd_option *sd_opts, *opt;
 
 	init_commands(&commands);
 
@@ -335,22 +332,18 @@ int main(int argc, char **argv)
 	optind = 3;
 
 	sd_opts = build_sd_options(command_opts);
-	long_options = build_long_options(sd_opts);
-	short_options = build_short_options(sd_opts);
+	while ((opt = sd_getopt(argc, argv, sd_opts)) != NULL) {
 
-	while ((ch = getopt_long(argc, argv, short_options, long_options,
-				&longindex)) >= 0) {
-
-		switch (ch) {
+		switch (opt->ch) {
 		case 'a':
-			sdhost = optarg;
+			sdhost = opt->arg.str;
 			break;
 		case 'p':
-			sdport = strtol(optarg, &p, 10);
-			if (optarg == p || sdport < 1 || sdport > UINT16_MAX) {
-				fprintf(stderr, "Invalid port number '%s'\n", optarg);
+			if (!sd_opt_is_valid_number(&opt->arg, 1, UINT16_MAX)) {
+				fprintf(stderr, "Invalid port number '%s'\n", opt->arg.str);
 				exit(EXIT_USAGE);
 			}
+			sdport = opt->arg.num;
 			break;
 		case 'r':
 			raw_output = true;
@@ -359,11 +352,12 @@ int main(int argc, char **argv)
 			subcommand_usage(argv[1], argv[2], EXIT_SUCCESS);
 			break;
 		case '?':
+		case '\0':
 			usage(commands, EXIT_USAGE);
 			break;
 		default:
 			if (command_parser)
-				command_parser(ch, optarg);
+				command_parser(opt);
 			else
 				usage(commands, EXIT_USAGE);
 			break;

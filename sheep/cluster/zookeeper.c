@@ -792,22 +792,26 @@ out:
 	return;
 }
 
-static int zk_init(const char *option)
+static int zk_init(struct sd_opt_param *option)
 {
 	int ret;
+	struct sd_opt_value *opt_val;
+	char *servers;
 
-	if (!option) {
+	opt_val = sd_opt_param_get(option, "zookeeper", "server");
+	if (!opt_val) {
 		eprintf("specify comma separated host:port pairs, "
 			"each corresponding to a zk server.\n");
 		eprintf("e.g. sheep /store -c zookeeper:127.0.0.1:"
 			"3000,127.0.0.1:3001,127.0.0.1:3002\n");
 		return -1;
 	}
+	servers = opt_val->str;
 
-	zhandle = zookeeper_init(option, watcher, SESSION_TIMEOUT, NULL, NULL,
+	zhandle = zookeeper_init(servers, watcher, SESSION_TIMEOUT, NULL, NULL,
 				 0);
 	if (!zhandle) {
-		eprintf("failed to connect to zk server %s\n", option);
+		eprintf("failed to connect to zk server %s\n", servers);
 		return -1;
 	}
 	dprintf("request session timeout:%dms, "

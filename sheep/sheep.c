@@ -39,9 +39,27 @@
 LIST_HEAD(cluster_drivers);
 static const char program_name[] = "sheep";
 
+static struct sd_opt_param cluster_options[] = {
+	{"local", "shmfile", "<filename>",
+	 "specify a file to be used for shared memory"},
+	{"zookeeper", "server", "<host:port>[,...]",
+	 "specify ZooKeeper servers with comma separated host:port pairs"},
+	{"accord", "server", "<server>",
+	 "specify one of Accord servers"},
+	{NULL, NULL, NULL, NULL},
+};
+
+static struct sd_opt_param write_cache_options[] = {
+	{"object", "size", "<size>",
+	 "specify a cache size for object cache"},
+	{"object", "directio", "<on|off>",
+	 "avoid using gateway page cache"},
+	{NULL, NULL, NULL, NULL},
+};
+
 static struct sd_option sheep_options[] = {
 	{'b', "bindaddr", true, NULL, "specify IP address of interface to listen on"},
-	{'c', "cluster", true, NULL, "specify the cluster driver"},
+	{'c', "cluster", true, cluster_options, "specify the cluster driver"},
 	{'d', "debug", false, NULL, "include debug messages in the log"},
 	{'f', "foreground", false, NULL, "make the program run in the foreground"},
 	{'g', "gateway", false, NULL, "make the progam run as a gateway mode"},
@@ -51,9 +69,9 @@ static struct sd_option sheep_options[] = {
 	{'o', "stdout", false, NULL, "log to stdout instead of shared logger"},
 	{'p', "port", true, NULL, "specify the TCP port on which to listen"},
 	{'P', "pidfile", true, NULL, "create a pid file"},
-	{'s', "disk-space", true, NULL, "specify the free disk space in megabytes"},
+	{'s', "disk-space", true, NULL, "specify the free disk space"},
 	{'u', "upgrade", false, NULL, "upgrade to the latest data layout"},
-	{'w', "write-cache", true, NULL, "specify the cache type"},
+	{'w', "write-cache", true, write_cache_options, "specify the cache type"},
 	{'y', "myaddr", true, NULL, "specify the address advertised to other sheep"},
 	{'z', "zone", true, NULL, "specify the zone id"},
 	{ 0, NULL, false, NULL, NULL },
@@ -172,101 +190,52 @@ static int init_signal(void)
 static struct cluster_info __sys;
 struct cluster_info *sys = &__sys;
 
-static void parse_arg(char *arg, const char *delim, void (*fn)(char *))
+static int object_cache_set(struct sd_opt_param *params)
 {
-	char *savep, *s;
+	const struct sd_opt_value *opt_val;
 
-	s = strtok_r(arg, delim, &savep);
-	do {
-		fn(s);
-	} while ((s = strtok_r(NULL, delim, &savep)));
-}
-
-static void object_cache_size_set(char *s)
-{
-	const char *header = "size=";
-	int len = strlen(header);
-	char *size, *p;
-	uint64_t cache_size;
-	const uint32_t max_cache_size = UINT32_MAX;
-
-	assert(!strncmp(s, header, len));
-
-	size = s + len;
-	cache_size = strtoull(size, &p, 10);
-	if (size == p || max_cache_size < cache_size)
-		goto err;
-
-	sys->object_cache_size = cache_size;
-	return;
-
-err:
-	fprintf(stderr, "Invalid object cache option '%s': "
-		"size must be an integer between 1 and %"PRIu32" inclusive\n",
-		s, max_cache_size);
-	exit(1);
-}
-
-static void object_cache_directio_set(char *s)
-{
-	assert(!strcmp(s, "directio"));
-	sys->object_cache_directio = true;
-}
-
-static void _object_cache_set(char *s)
-{
-	int i;
-	static bool first = true;
-
-	struct object_cache_arg {
-		const char *name;
-		void (*set)(char *);
-	};
-
-	struct object_cache_arg object_cache_args[] = {
-		{ "size=", object_cache_size_set },
-		{ "directio", object_cache_directio_set },
-		{ NULL, NULL },
-	};
-
-	if (first) {
-		assert(!strcmp(s, "object"));
-		first = false;
-		return;
-	}
-
-	for (i = 0; object_cache_args[i].name; i++) {
-		const char *n = object_cache_args[i].name;
-
-		if (!strncmp(s, n, strlen(n))) {
-			object_cache_args[i].set(s);
-			return;
-		}
-	}
-
-	fprintf(stderr, "invalid object cache arg: %s\n", s);
-	exit(1);
-}
-
-static void object_cache_set(char *s)
-{
 	sys->enabled_cache_type |= CACHE_TYPE_OBJECT;
-	parse_arg(s, ":", _object_cache_set);
+
+	opt_val = sd_opt_param_get(params, "object", "directio");
+	if (opt_val) {
+		if (!sd_opt_is_bool(opt_val)) {
+			fprintf(stderr, "set directio with on or off\n");
+			return -1;
+		}
+		sys->object_cache_directio = opt_val->boolean;
+	}
+
+	opt_val = sd_opt_param_get(params, "object", "size");
+	if (!opt_val) {
+		fprintf(stderr, "object cache size is not set\n");
+		return -1;
+	} else if (!sd_opt_is_size(opt_val)) {
+		fprintf(stderr, "invalid cache size, %s\n",
+			opt_val->str);
+		return -1;
+	} else if (opt_val->size < SD_DATA_OBJ_SIZE) {
+		fprintf(stderr, "Cache size %s is too small\n",
+			opt_val->str);
+		return -1;
+	}
+	sys->object_cache_size = opt_val->size / 1024 / 1024;
+
+	return 0;
 }
 
-static void disk_cache_set(char *s)
+static int disk_cache_set(struct sd_opt_param *params)
 {
-	assert(!strcmp(s, "disk"));
 	sys->enabled_cache_type |= CACHE_TYPE_DISK;
+	return 0;
 }
 
-static void do_cache_type(char *s)
+static int init_cache_type(struct sd_option *opt)
 {
 	int i;
 
 	struct cache_type {
 		const char *name;
-		void (*set)(char *);
+		int (*set)(struct sd_opt_param *);
 	};
 	struct cache_type cache_types[] = {
 		{ "object", object_cache_set },
@@ -277,31 +246,16 @@ static void do_cache_type(char *s)
 	for (i = 0; cache_types[i].name; i++) {
 		const char *n = cache_types[i].name;
 
-		if (!strncmp(s, n, strlen(n))) {
-			cache_types[i].set(s);
-			return;
-		}
+		if (!strncmp(opt->arg.str, n, strlen(n)))
+			return cache_types[i].set(opt->params);
 	}
+	fprintf(stderr, "invalid cache type: %s\n", opt->arg.str);
 
-	fprintf(stderr, "invalid cache type: %s\n", s);
-	exit(1);
-}
-
-static void init_cache_type(char *arg)
-{
-	sys->object_cache_size = 0;
-
-	parse_arg(arg, ",", do_cache_type);
-
-	if (is_object_cache_enabled() && sys->object_cache_size == 0) {
-		fprintf(stderr, "object cache size is not set\n");
-		exit(1);
-	}
+	return -1;
 }
 
 int main(int argc, char **argv)
 {
-	int ch, longindex;
 	int ret, port = SD_LISTEN_PORT;
 	const char *dir = DEFAULT_OBJECT_DIR;
 	bool is_daemon = true;
@@ -309,57 +263,51 @@ int main(int argc, char **argv)
 	int log_level = SDOG_INFO;
 	char path[PATH_MAX];
 	int64_t zone = -1;
-	int64_t free_space = 0;
 	int nr_vnodes = SD_DEFAULT_VNODES;
 	bool explicit_addr = false;
 	int af;
-	char *p;
 	struct cluster_driver *cdrv;
 	char *pid_file = NULL;
 	char *bindaddr = NULL;
 	unsigned char buf[sizeof(struct in6_addr)];
 	int ipv4 = 0;
 	int ipv6 = 0;
-	struct option *long_options;
-	const char *short_options;
+	struct sd_option *opt;
 
 	signal(SIGPIPE, SIG_IGN);
 
-	long_options = build_long_options(sheep_options);
-	short_options = build_short_options(sheep_options);
-	while ((ch = getopt_long(argc, argv, short_options, long_options,
-				 &longindex)) >= 0) {
-		switch (ch) {
+	while ((opt = sd_getopt(argc, argv, sheep_options)) != NULL) {
+		switch (opt->ch) {
 		case 'p':
-			port = strtol(optarg, &p, 10);
-			if (optarg == p || port < 1 || port > UINT16_MAX) {
+			if (!sd_opt_is_valid_number(&opt->arg, 1, UINT16_MAX)) {
 				fprintf(stderr, "Invalid port number '%s'\n",
-					optarg);
+					opt->arg.str);
 				exit(1);
 			}
+			port = opt->arg.num;
 			break;
 		case 'P':
-			pid_file = optarg;
+			pid_file = opt->arg.str;
 			break;
 		case 'f':
 			is_daemon = false;
 			break;
 		case 'l':
-			log_level = strtol(optarg, &p, 10);
-			if (optarg == p || log_level < SDOG_EMERG ||
-			    log_level > SDOG_DEBUG) {
+			if (!sd_opt_is_valid_number(&opt->arg, SDOG_EMERG,
+						    SDOG_DEBUG)) {
 				fprintf(stderr, "Invalid log level '%s'\n",
-					optarg);
+					opt->arg.str);
 				sdlog_help();
 				exit(1);
 			}
+			log_level = opt->arg.num;
 			break;
 		case 'y':
-			af = strstr(optarg, ":") ? AF_INET6 : AF_INET;
-			if (!str_to_addr(af, optarg, sys->this_node.nid.addr)) {
+			af = strstr(opt->arg.str, ":") ? AF_INET6 : AF_INET;
+			if (!str_to_addr(af, opt->arg.str, sys->this_node.nid.addr)) {
 				fprintf(stderr,
 					"Invalid address: '%s'\n",
-					optarg);
+					opt->arg.str);
 				sdlog_help();
 				exit(1);
 			}
@@ -377,33 +325,31 @@ int main(int argc, char **argv)
 			to_stdout = true;
 			break;
 		case 'z':
-			zone = strtol(optarg, &p, 10);
-			if (optarg == p || zone < 0 || UINT32_MAX < zone) {
+			if (!sd_opt_is_valid_number(&opt->arg, 0, UINT32_MAX)) {
 				fprintf(stderr, "Invalid zone id '%s': "
 					"must be an integer between 0 and %u\n",
-					optarg, UINT32_MAX);
+					opt->arg.str, UINT32_MAX);
 				exit(1);
 			}
+			zone = opt->arg.num;
 			sys->this_node.zone = zone;
 			break;
 		case 's':
-			free_space = strtoll(optarg, &p, 10);
-			if (optarg == p || free_space <= 0 ||
-			    UINT64_MAX < free_space) {
-				fprintf(stderr, "Invalid free space size '%s': "
-					"must be an integer between 0 and "
-					"%"PRIu64"\n", optarg, UINT64_MAX);
+			if (!sd_opt_is_size(&opt->arg)) {
+				fprintf(stderr, "Invalid free space size, %s\n",
+					opt->arg.str);
 				exit(1);
 			}
-			sys->disk_space = free_space * 1024 * 1024;
+			sys->disk_space = opt->arg.size;
 			break;
 		case 'u':
 			sys->upgrade = true;
 			break;
 		case 'c':
-			sys->cdrv = find_cdrv(optarg);
+			sys->cdrv = find_cdrv(opt->arg.str);
 			if (!sys->cdrv) {
-				fprintf(stderr, "Invalid cluster driver '%s'\n", optarg);
+				fprintf(stderr, "Invalid cluster driver '%s'\n",
+					opt->arg.str);
 				fprintf(stderr, "Supported drivers:");
 				FOR_EACH_CLUSTER_DRIVER(cdrv) {
 					fprintf(stderr, " %s", cdrv->name);
@@ -412,23 +358,24 @@ int main(int argc, char **argv)
 				exit(1);
 			}
 
-			sys->cdrv_option = get_cdrv_option(sys->cdrv, optarg);
+			sys->cdrv_option = opt->params;
 			break;
 		case 'w':
-			init_cache_type(optarg);
+			if (init_cache_type(opt) < 0)
+				exit(1);
 			break;
 		case 'j':
 			sys->use_journal = true;
 			break;
 		case 'b':
 			/* validate provided address using inet_pton */
-			ipv4 = inet_pton(AF_INET, optarg, buf);
-			ipv6 = inet_pton(AF_INET6, optarg, buf);
+			ipv4 = inet_pton(AF_INET, opt->arg.str, buf);
+			ipv6 = inet_pton(AF_INET6, opt->arg.str, buf);
 			if (ipv4 || ipv6) {
-				bindaddr = optarg;
+				bindaddr = opt->arg.str;
 			} else {
-				fprintf(stderr,
-					"Invalid bind address '%s'\n", optarg);
+				fprintf(stderr, "Invalid bind address '%s'\n",
+					opt->arg.str);
 				exit(1);
 			}
 			break;

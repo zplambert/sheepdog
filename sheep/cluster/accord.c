@@ -521,21 +521,25 @@ out:
 	pthread_mutex_unlock(&queue_lock);
 }
 
-static int accord_init(const char *option)
+static int accord_init(struct sd_opt_param *option)
 {
 	int ret;
+	struct sd_opt_value *opt_val;
+	const char *server;
 
-	if (!option) {
+	opt_val = sd_opt_param_get(option, "accord", "server");
+	if (!opt_val) {
 		eprintf("specify one of the accord servers.\n");
 		eprintf("e.g. sheep /store -c accord:127.0.0.1\n");
 		return -1;
 	}
+	server = opt_val->str;
 
 	pthread_mutex_lock(&start_lock);
 
-	ahandle = acrd_init(option, 9090, acrd_join_fn, acrd_leave_fn, NULL);
+	ahandle = acrd_init(server, 9090, acrd_join_fn, acrd_leave_fn, NULL);
 	if (!ahandle) {
-		eprintf("failed to connect to accrd server %s\n", option);
+		eprintf("failed to connect to accrd server %s\n", server);
 		return -1;
 	}
 

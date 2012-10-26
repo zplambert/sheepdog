@@ -756,7 +756,7 @@ out:
 	exit(1);
 }
 
-static int corosync_init(const char *option)
+static int corosync_init(struct sd_opt_param *option)
 {
 	int ret, retry_cnt = 0;
 	uint32_t nodeid;

@@ -12,7 +12,6 @@
 #define __SD_OPTION_H__
 
 #include <stdbool.h>
-#include <getopt.h>
 #include <stdint.h>
 
 /*

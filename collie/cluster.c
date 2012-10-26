@@ -429,40 +429,36 @@ static struct subcommand cluster_cmd[] = {
 	{NULL,},
 };
 
-static int cluster_parser(int ch, char *opt)
+static int cluster_parser(struct sd_option *opt)
 {
-	int copies;
-	char *p;
-
-	switch (ch) {
+	switch (opt->ch) {
 	case 'b':
 		pstrcpy(cluster_cmd_data.name, sizeof(cluster_cmd_data.name),
-			opt);
+			opt->arg.str);
 		break;
 	case 'c':
-		copies = strtol(opt, &p, 10);
-		if (opt == p || copies < 1) {
+		if (!sd_opt_is_valid_number(&opt->arg, 1, INT64_MAX)) {
 			fprintf(stderr, "There must be at least one copy of data\n");
 			exit(EXIT_FAILURE);
-		} else if (copies > SD_MAX_COPIES) {
+		} else if (!sd_opt_is_valid_number(&opt->arg, 1, SD_MAX_COPIES)) {
 			fprintf(stderr, "Redundancy may not exceed %d copies\n",
 				SD_MAX_COPIES);
 			exit(EXIT_FAILURE);
 		}
-		cluster_cmd_data.copies = copies;
+		cluster_cmd_data.copies = opt->arg.num;
 		break;
 	case 'm':
-		if (strcmp(opt, "safe") == 0) {
+		if (strcmp(opt->arg.str, "safe") == 0) {
 			cluster_cmd_data.nohalt = false;
 			cluster_cmd_data.quorum = false;
-		} else if (strcmp(opt, "quorum") == 0) {
+		} else if (strcmp(opt->arg.str, "quorum") == 0) {
 			cluster_cmd_data.nohalt = false;
 			cluster_cmd_data.quorum = true;
-		} else if (strcmp(opt, "unsafe") == 0) {
+		} else if (strcmp(opt->arg.str, "unsafe") == 0) {
 			cluster_cmd_data.nohalt = true;
 			cluster_cmd_data.quorum = false;
 		} else {
-			fprintf(stderr, "Unknown mode '%s'\n", opt);
+			fprintf(stderr, "Unknown mode '%s'\n", opt->arg.str);
 			exit(EXIT_FAILURE);
 		}
 		break;
@@ -470,11 +466,11 @@ static int cluster_parser(int ch, char *opt)
 		cluster_cmd_data.force = true;
 		break;
 	case 'R':
-		cluster_cmd_data.epoch = strtol(opt, &p, 10);
-		if (opt == p) {
+		if (!sd_opt_is_number(&opt->arg)) {
 			fprintf(stderr, "The epoch must be an integer\n");
 			exit(EXIT_FAILURE);
 		}
+		cluster_cmd_data.epoch = opt->arg.num;
 		if (cluster_cmd_data.epoch < 1) {
 			fprintf(stderr, "The epoch must be greater than 0\n");
 			exit(EXIT_FAILURE);

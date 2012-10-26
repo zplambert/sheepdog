@@ -1897,28 +1897,26 @@ static struct subcommand vdi_cmd[] = {
 	{NULL,},
 };
 
-static int vdi_parser(int ch, char *opt)
+static int vdi_parser(struct sd_option *opt)
 {
-	char *p;
-	int nr_copies;
-
-	switch (ch) {
+	switch (opt->ch) {
 	case 'P':
 		vdi_cmd_data.prealloc = true;
 		break;
 	case 'i':
-		vdi_cmd_data.index = strtol(opt, &p, 10);
-		if (opt == p) {
-			fprintf(stderr, "The index must be an integer\n");
+		if (!sd_opt_is_valid_number(&opt->arg, 0, MAX_DATA_OBJS)) {
+			fprintf(stderr, "The index is invalid, %s\n", opt->arg.str);
 			exit(EXIT_FAILURE);
 		}
+		vdi_cmd_data.index = opt->arg.num;
 		break;
 	case 's':
-		vdi_cmd_data.snapshot_id = strtol(opt, &p, 10);
-		if (opt == p) {
+		if (sd_opt_is_number(&opt->arg))
+			vdi_cmd_data.snapshot_id = opt->arg.num;
+		else {
 			vdi_cmd_data.snapshot_id = 0;
 			pstrcpy(vdi_cmd_data.snapshot_tag,
-				sizeof(vdi_cmd_data.snapshot_tag), opt);
+				sizeof(vdi_cmd_data.snapshot_tag), opt->arg.str);
 		}
 		break;
 	case 'x':
@@ -1931,20 +1929,20 @@ static int vdi_parser(int ch, char *opt)
 		vdi_cmd_data.writeback = true;
 		break;
 	case 'c':
-		nr_copies = strtol(opt, &p, 10);
-		if (opt == p || nr_copies < 0 || nr_copies > SD_MAX_COPIES) {
+		if (!sd_opt_is_valid_number(&opt->arg, 0, SD_MAX_COPIES)) {
 			fprintf(stderr, "Invalid copies number, must be "
 				"an integer between 0 and %d\n", SD_MAX_COPIES);
 			exit(EXIT_FAILURE);
 		}
-		vdi_cmd_data.nr_copies = nr_copies;
+		vdi_cmd_data.nr_copies = opt->arg.num;
 		break;
 	case 'F':
-		vdi_cmd_data.from_snapshot_id = strtol(opt, &p, 10);
-		if (opt == p) {
+		if (sd_opt_is_number(&opt->arg))
+			vdi_cmd_data.from_snapshot_id = opt->arg.num;
+		else {
 			vdi_cmd_data.from_snapshot_id = 0;
 			pstrcpy(vdi_cmd_data.from_snapshot_tag,
-				sizeof(vdi_cmd_data.from_snapshot_tag), opt);
+				sizeof(vdi_cmd_data.from_snapshot_tag), opt->arg.str);
 		}
 		break;
 	}

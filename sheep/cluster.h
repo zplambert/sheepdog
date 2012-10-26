@@ -22,6 +22,7 @@
 #include "sheepdog_proto.h"
 #include "sheep.h"
 #include "logger.h"
+#include "option.h"
 
 /* maximum payload size sent in ->notify and ->unblock */
 #define SD_MAX_EVENT_BUF_SIZE (64 * 1024)
@@ -44,7 +45,7 @@ struct cluster_driver {
 	 *
 	 * Returns zero on success, -1 on error.
 	 */
-	int (*init)(const char *option);
+	int (*init)(struct sd_opt_param *option);
 
 	/*
 	 * Get a node ID for this sheep.
@@ -129,13 +130,9 @@ static void __attribute__((constructor)) regist_ ## driver(void) {	\
 static inline struct cluster_driver *find_cdrv(const char *name)
 {
 	struct cluster_driver *cdrv;
-	int len;
 
 	FOR_EACH_CLUSTER_DRIVER(cdrv) {
-		len = strlen(cdrv->name);
-
-		if (strncmp(cdrv->name, name, len) == 0 &&
-		    (name[len] == ':' || name[len] == '\0'))
+		if (strcmp(cdrv->name, name) == 0)
 			return cdrv;
 	}
 

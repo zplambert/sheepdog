@@ -33,7 +33,7 @@
 struct command {
 	const char *name;
 	struct subcommand *sub;
-	int (*parser)(int, char *);
+	int (*parser)(struct sd_option *);
 };
 
 struct subcommand {

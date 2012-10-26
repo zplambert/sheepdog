@@ -523,17 +523,19 @@ static int local_get_local_addr(uint8_t *myaddr)
 	return 0;
 }
 
-static int local_init(const char *option)
+static int local_init(struct sd_opt_param *option)
 {
 	sigset_t mask;
 	int ret;
+	struct sd_opt_value *opt_val;
 	static struct timer t = {
 		.callback = check_pids,
 		.data = &t,
 	};
 
-	if (option)
-		shmfile = option;
+	opt_val = sd_opt_param_get(option, "local", "shmfile");
+	if (opt_val && opt_val->str)
+		shmfile = opt_val->str;
 
 	shm_queue_init();
 

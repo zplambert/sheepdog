@@ -190,7 +190,7 @@ static int trace_cat(int argc, char **argv)
 	return EXIT_SUCCESS;
 }
 
-static int debug_parser(int ch, char *opt)
+static int debug_parser(struct sd_option *opt)
 {
 	return 0;
 }
