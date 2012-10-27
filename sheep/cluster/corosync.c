@@ -819,6 +819,7 @@ again:
 
 static struct cluster_driver cdrv_corosync = {
 	.name		= "corosync",
+	.desc		= "Corosync cluster driver",
 
 	.init		= corosync_init,
 	.get_local_addr	= corosync_get_local_addr,

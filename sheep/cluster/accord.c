@@ -581,6 +581,7 @@ static int accord_init(struct sd_opt_param *option)
 
 static struct cluster_driver cdrv_accord = {
 	.name       = "accord",
+	.desc       = "Accord cluster driver",
 
 	.init       = accord_init,
 	.join       = accord_join,

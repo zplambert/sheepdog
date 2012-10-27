@@ -23,6 +23,37 @@
 #define SD_OPT_BOOL     0x04
 #define SD_OPT_SIZE     0x08
 
+void sd_opt_usage(struct sd_option *opt, const char *arg,
+		  const char *desc)
+{
+	struct sd_opt_param *param;
+	bool header_is_printed = false;
+
+	if (!opt->params)
+		return;
+
+	fprintf(stderr, "\n");
+	fprintf(stderr, "%s\n", desc);
+
+	sd_for_each_opt_param(param, opt->params) {
+		char s[256];
+		if (strcmp(param->arg, arg) != 0)
+			continue;
+
+		if (!header_is_printed) {
+			fprintf(stderr, "  -%c %s[:option[,option[,...]]]\n",
+				opt->ch, arg);
+			fprintf(stderr, "  OPTIONS:\n");
+			header_is_printed = true;
+		}
+		snprintf(s, sizeof(s), "%s=%s", param->key, param->usage);
+		fprintf(stderr, "    %-32s%s\n", s, param->desc);
+	}
+
+	if (!header_is_printed)
+		fprintf(stderr, "  -%c %s\n", opt->ch, arg);
+}
+
 bool sd_opt_is_number(const struct sd_opt_value *val)
 {
 	return !!(val->type & SD_OPT_NUMBER);
@@ -211,8 +242,10 @@ static void parse_sd_option(struct sd_option *opt, char *str)
 		int ret;
 
 		ret = parse_sd_opt_params(opt->params, arg, str);
-		if (ret < 0)
+		if (ret < 0) {
+			sd_opt_usage(opt, arg, "Usage:");
 			exit(1);
+		}
 	}
 }
 

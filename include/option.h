@@ -52,6 +52,8 @@ struct sd_option {
 	struct sd_opt_value arg;
 };
 
+void sd_opt_usage(struct sd_option *opt, const char *arg,
+		  const char *desc);
 bool sd_opt_is_number(const struct sd_opt_value *val);
 bool sd_opt_is_bool(const struct sd_opt_value *val);
 bool sd_opt_is_size(const struct sd_opt_value *val);

@@ -39,6 +39,7 @@ enum cluster_join_result {
 
 struct cluster_driver {
 	const char *name;
+	const char *desc;
 
 	/*
 	 * Initialize the cluster driver

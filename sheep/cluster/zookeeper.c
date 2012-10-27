@@ -838,6 +838,7 @@ static int zk_init(struct sd_opt_param *option)
 
 static struct cluster_driver cdrv_zookeeper = {
 	.name       = "zookeeper",
+	.desc       = "ZooKeeper cluster driver",
 
 	.init       = zk_init,
 	.join       = zk_join,

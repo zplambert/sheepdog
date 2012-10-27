@@ -562,6 +562,7 @@ static int local_init(struct sd_opt_param *option)
 
 static struct cluster_driver cdrv_local = {
 	.name		= "local",
+	.desc		= "Local cluster driver",
 
 	.init		= local_init,
 	.get_local_addr	= local_get_local_addr,

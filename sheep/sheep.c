@@ -235,21 +235,30 @@ static int init_cache_type(struct sd_option *opt)
 
 	struct cache_type {
 		const char *name;
+		const char *desc;
 		int (*set)(struct sd_opt_param *);
 	};
 	struct cache_type cache_types[] = {
-		{ "object", object_cache_set },
-		{ "disk", disk_cache_set },
+		{ "object", "Object cache", object_cache_set },
+		{ "disk", "Disk cache", disk_cache_set },
 		{ NULL, NULL },
 	};
 
 	for (i = 0; cache_types[i].name; i++) {
 		const char *n = cache_types[i].name;
+		int ret;
 
-		if (!strncmp(opt->arg.str, n, strlen(n)))
-			return cache_types[i].set(opt->params);
+		if (!strncmp(opt->arg.str, n, strlen(n))) {
+			ret = cache_types[i].set(opt->params);
+			if (ret < 0)
+				sd_opt_usage(opt, n, cache_types[i].desc);
+			return ret;
+		}
 	}
 	fprintf(stderr, "invalid cache type: %s\n", opt->arg.str);
+	fprintf(stderr, "Valid cache types are:\n");
+	for (i = 0; cache_types[i].name; i++)
+		sd_opt_usage(opt, cache_types[i].name, cache_types[i].desc);
 
 	return -1;
 }
@@ -350,11 +359,11 @@ int main(int argc, char **argv)
 			if (!sys->cdrv) {
 				fprintf(stderr, "Invalid cluster driver '%s'\n",
 					opt->arg.str);
-				fprintf(stderr, "Supported drivers:");
+				fprintf(stderr, "Supported drivers:\n");
 				FOR_EACH_CLUSTER_DRIVER(cdrv) {
-					fprintf(stderr, " %s", cdrv->name);
+					sd_opt_usage(opt, cdrv->name,
+						     cdrv->desc);
 				}
-				fprintf(stderr, "\n");
 				exit(1);
 			}
 
