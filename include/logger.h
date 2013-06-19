@@ -19,7 +19,8 @@
 
 #include "util.h"
 
-#define LOG_SPACE_SIZE (32 * 1024 * 1024)
+#define LOG_SPACE_SIZE (1 * 1024 * 1024)
+#define LOG_SPACE_DEBUG_SIZE (32 * 1024 * 1024)
 #define MAX_MSG_SIZE 1024
 #define MAX_THREAD_NAME_LEN	20
 

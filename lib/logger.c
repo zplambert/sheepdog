@@ -593,7 +593,7 @@ void early_log_init(const char *format_name, struct logger_user_info *user_info)
 }
 
 notrace int log_init(const char *program_name, int size, bool to_stdout,
-		int level, char *outfile)
+		     int level, char *outfile)
 {
 	char log_dir[PATH_MAX], tmp[PATH_MAX];
 
